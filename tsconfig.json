@@ -1,0 +1,14 @@
+{
+    "include": [
+        "/*", // Files to be included in the compilation
+        "index.ts" // Add your file or directory path here
+    ],
+    "compilerOptions": {
+        "target": "es6", // Set target ECMAScript version
+        "module": "commonjs", // For Node.js applications
+        "strict": true, // Enable all strict type-checking options
+        "esModuleInterop": true, // Enables `esModuleInterop`
+        "skipLibCheck": true, // Skip type checking of all declaration files (*.d.ts)
+        "outDir": "./dist" // Redirect output structure to the directory
+    }
+}
