@@ -6,7 +6,7 @@ import traverse from "@babel/traverse";
 import express from "express";
 import prettier from "prettier";
 import { SandpackBundlerFiles } from "@codesandbox/sandpack-client";
-import { DEFAULT_REACT_LOADING_FILES, DEFAULT_REACT_FILES } from "./sample";
+import { DEFAULT_REACT_LOADING_FILES, DEFAULT_REACT_FILES } from "./exhibitA";
 
 type LintOptions = {
   parser: "typescript" | "babel";
