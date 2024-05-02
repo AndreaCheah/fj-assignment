@@ -103,3 +103,4 @@ async function applyLinting(ast: t.Node): Promise<void> {
 applyLinting(ast).then(() => {
   console.log("All specified template literals have been linted.");
 });
+
