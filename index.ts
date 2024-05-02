@@ -7,6 +7,10 @@ import express from 'express';
 import prettier from 'prettier';
 // const { SandpackBundlerFiles } = require("sandpack");
 
+type LintOptions = {
+  parser: "typescript" | "babel";
+};
+
 // The JavaScript code as a string
 // const code = `
 // // Your JavaScript code here
@@ -35,7 +39,6 @@ const myTypescriptString = `
 }\`;
 `;
 
-// Parse the code into an AST
 const ast = babelParser.parse(myTypescriptString, {
   sourceType: "module",
   plugins: ["jsx", "typescript"],
@@ -77,30 +80,57 @@ async function lint(code: string) {
     setTimeout(() => {
       const formattedCode = prettier.format(code, { parser: "babel" });
       resolve(formattedCode);
-    }, Math.random() * 1000); // random delay between 0 and 1 seconds
+    }, Math.random() * 1000);
   });
 }
 
-async function applyLinting(ast: t.Node): Promise<void> {
-  const promises: Promise<void>[] = [];
-  traverse(ast, {
-    TemplateLiteral(path: NodePath<babel.types.TemplateLiteral>) {
-      console.log("Examining a template literal...");
-      if (path.node.leadingComments?.some(comment => comment.value.trim() === 'tsx')) {
-        console.log("Template literal has 'tsx' comment.");
-        const rawCode = generate(path.node).code as string;
-        console.log(`Raw code before formatting: ${rawCode}`);
-        promises.push(lint(rawCode).then(formattedCode => {
-          console.log("Formatted code:", formattedCode);
-          path.replaceWithSourceString(formattedCode as string);
-        }));
-      }
-    }
-  });
-  await Promise.all(promises); // Wait for all formatting to complete
+// async function applyLinting(ast: t.Node): Promise<void> {
+//   const promises: Promise<void>[] = [];
+//   traverse(ast, {
+//     TemplateLiteral(path: NodePath<babel.types.TemplateLiteral>) {
+//       console.log("Examining a template literal...");
+//       if (path.node.leadingComments?.some(comment => comment.value.trim() === 'tsx')) {
+//         console.log("Template literal has 'tsx' comment.");
+//         const rawCode = generate(path.node).code as string;
+//         console.log(`Raw code before formatting: ${rawCode}`);
+//         promises.push(lint(rawCode).then(formattedCode => {
+//           console.log("Formatted code:", formattedCode);
+//           path.replaceWithSourceString(formattedCode as string);
+//         }));
+//       }
+//     }
+//   });
+//   await Promise.all(promises);
+// }
+
+// applyLinting(ast).then(() => {
+//   console.log("All specified template literals have been linted.");
+// });
+
+async function lintCodeWithTemplateLiterals(code: string): Promise<string> {
+  const regex = /\/\*tsx\*\/`([^`]*)`/g;
+  let match;
+  let lintedCode = code;
+
+  while ((match = regex.exec(code)) !== null) {
+    const original = match[0];
+    const contentToLint = match[1];
+    const formattedContent = await lint(contentToLint);
+    lintedCode = lintedCode.replace(original, `/*tsx*/\`${formattedContent}\``);
+  }
+
+  return lintedCode;
 }
 
-applyLinting(ast).then(() => {
-  console.log("All specified template literals have been linted.");
-});
-
+let myText = `//TODO: Make sure all the processors are available here
+const packageJson = {
+  dependencies: {
+    react: "^18.0.0",
+    "react-dom": "^18.0.0",
+    "react-scripts": "^4.0.0",
+  },
+  main: "/index.js",
+  devDependencies: {},
+};`;
+const string2 = `${myText}`;
+lintCodeWithTemplateLiterals(string2).then(console.log);
