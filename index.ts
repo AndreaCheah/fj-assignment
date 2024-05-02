@@ -1,10 +1,10 @@
 import * as babelParser from "@babel/parser";
 import { default as generate } from "@babel/generator";
-import { NodePath } from '@babel/traverse';
-import * as t from '@babel/types';
-import traverse from '@babel/traverse';
-import express from 'express';
-import prettier from 'prettier';
+import { NodePath } from "@babel/traverse";
+import * as t from "@babel/types";
+import traverse from "@babel/traverse";
+import express from "express";
+import prettier from "prettier";
 
 type LintOptions = {
   parser: "typescript" | "babel";
@@ -27,7 +27,6 @@ const ast = babelParser.parse(myTypescriptString, {
 function findTemplateLiterals(ast: t.Node) {
   traverse(ast, {
     VariableDeclaration(path: NodePath<t.VariableDeclaration>) {
-      console.log("Found a variable declaration.");
       if (
         path.node.leadingComments &&
         path.node.leadingComments.some(
@@ -36,7 +35,6 @@ function findTemplateLiterals(ast: t.Node) {
       ) {
         path.node.declarations.forEach((declaration) => {
           if (declaration.init && declaration.init.type === "TemplateLiteral") {
-            console.log("Template literal found:");
             console.log(generateSourceCode(declaration.init));
           }
         });
@@ -63,7 +61,9 @@ async function lint(code: string) {
 
 async function lintCodeWithTemplateLiterals(code: string): Promise<string> {
   try {
-    const ast = babelParser.parse(code, {
+    const cleanedCode = code.replace(/\/\*tsx\*\//g, '');
+
+    const ast = babelParser.parse(cleanedCode, {
       sourceType: "module",
       plugins: ["jsx", "typescript"],
     });
@@ -72,16 +72,19 @@ async function lintCodeWithTemplateLiterals(code: string): Promise<string> {
 
     traverse(ast, {
       TaggedTemplateExpression(path) {
-        if (path.node.tag.type === "Identifier" && path.node.tag.name === "tsx") {
+        if (
+          path.node.tag.type === "Identifier" &&
+          path.node.tag.name === "tsx"
+        ) {
           const original = path.toString();
           const contentToLint = path.get("quasi").getSource();
           promises.push(
-            lint(contentToLint).then(formattedContent => {
-              path.replaceWithSourceString(`/*tsx*/\`${formattedContent}\``);
+            lint(contentToLint).then((formattedContent) => {
+              path.replaceWithSourceString(`\`${formattedContent}\``);
             })
           );
         }
-      }
+      },
     });
 
     await Promise.all(promises);
@@ -95,22 +98,47 @@ async function lintCodeWithTemplateLiterals(code: string): Promise<string> {
 }
 
 async function main() {
-  const myText = `//TODO: Make sure all the processors are available here
-const packageJson = {
-  dependencies: {
-    react: "^18.0.0",
-    "react-dom": "^18.0.0",
-    "react-scripts": "^4.0.0",
-  },
-  main: "/index.js",
-  devDependencies: {},
-};`;
+  const testCases = [
+    {
+      description: "Nested Template Literals",
+      code: `/*tsx*/ const outerComponent = \`<div>\${<div style={{margin: "20px"}}>\${"Content inside nested literal"}</div>}</div>\`;`,
+    },
+    {
+      description: "Comments within Template Literals",
+      code: `/*tsx*/ const commentedComponent = \`<div>
+        {/* This is a JSX comment inside a template literal */}
+        <span>\${"Text with comment"}</span>
+      </div>\`;`,
+    },
+    {
+      description: "Empty Template Literals",
+      code: `/*tsx*/ const emptyComponent = \`\`;`,
+    },
+    {
+      description: "Multiple Template Literals in a Line",
+      code: `/*tsx*/ const multiLine = \`<span>\${"First"}</span>\` + /*tsx*/ \`<span>\${"Second"}</span>\`;`,
+    },
+    {
+      description: "No Template Literals",
+      code: `
+      const regularCode = function() {
+        console.log("No template literals here.");
+      };`,
+    },
+  ];
 
-  try {
-    const lintedCode = await lintCodeWithTemplateLiterals(myText);
-    console.log(lintedCode);
-  } catch (error) {
-    console.error(`Failed to lint and log the code: ${error}`);
+  for (const testCase of testCases) {
+    try {
+      console.log(`Testing: ${testCase.description}`);
+      const lintedCode = await lintCodeWithTemplateLiterals(testCase.code);
+      console.log("Linted Code Output:");
+      console.log(lintedCode);
+    } catch (error) {
+      console.error(
+        `Failed to lint and log the code for '${testCase.description}': ${error}`
+      );
+    }
+    console.log("-----------------------------------");
   }
 }
 
