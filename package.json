@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@babel/traverse": "^7.20.10",
+    "@codesandbox/sandpack-client": "^2.13.8",
     "express": "^4.18.2",
     "prettier": "^2.8.1"
   }
