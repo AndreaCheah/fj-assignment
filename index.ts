@@ -5,6 +5,8 @@ import * as t from "@babel/types";
 import traverse from "@babel/traverse";
 import express from "express";
 import prettier from "prettier";
+import { SandpackBundlerFiles } from "@codesandbox/sandpack-client";
+import { DEFAULT_REACT_LOADING_FILES, DEFAULT_REACT_FILES } from "./sample";
 
 type LintOptions = {
   parser: "typescript" | "babel";
@@ -61,7 +63,7 @@ async function lint(code: string) {
 
 async function lintCodeWithTemplateLiterals(code: string): Promise<string> {
   try {
-    const cleanedCode = code.replace(/\/\*tsx\*\//g, '');
+    const cleanedCode = code.replace(/\/\*tsx\*\//g, "");
 
     const ast = babelParser.parse(cleanedCode, {
       sourceType: "module",
@@ -97,8 +99,20 @@ async function lintCodeWithTemplateLiterals(code: string): Promise<string> {
   }
 }
 
+function sandpackFilesToString(files: SandpackBundlerFiles): string {
+  return Object.entries(files)
+  .map(([fileName, fileContent]) => `/* File: ${fileName} */\nexport default function Component() { return (${fileContent}); }`)
+  .join("\n\n");
+}
+
+const sampleCode1 = sandpackFilesToString(DEFAULT_REACT_LOADING_FILES);
+
 async function main() {
   const testCases = [
+    {
+      description: "Exhibit A file 1",
+      code: sampleCode1,
+    },
     {
       description: "Nested Template Literals",
       code: `/*tsx*/ const outerComponent = \`<div>\${<div style={{margin: "20px"}}>\${"Content inside nested literal"}</div>}</div>\`;`,
