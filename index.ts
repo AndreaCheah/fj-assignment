@@ -5,32 +5,10 @@ import * as t from '@babel/types';
 import traverse from '@babel/traverse';
 import express from 'express';
 import prettier from 'prettier';
-// const { SandpackBundlerFiles } = require("sandpack");
 
 type LintOptions = {
   parser: "typescript" | "babel";
 };
-
-// The JavaScript code as a string
-// const code = `
-// // Your JavaScript code here
-
-// import "./styles.css"
-
-//     export default function App() {
-
-//         return (
-//           <div className="flex gap-2 w-[300px] h-[400px] bg-slate-500 p-4">
-//           <p>This text is big Hmm</p>
-//           <div className="bg-blue-400 w-8 h-8" />
-//           <div className="bg-red-400 w-8 h-8" />
-//           <div className="bg-green-400 w-8 h-8" />
-//           </div>
-//         )
-//     }
-
-// `;
-
 
 //EXAMPLE 1
 const myTypescriptString = `
@@ -67,7 +45,6 @@ function findTemplateLiterals(ast: t.Node) {
   });
 }
 
-// generate source code from AST nodes
 function generateSourceCode(node: babel.types.Node) {
   const { code } = generate(node);
   return code;
@@ -84,45 +61,41 @@ async function lint(code: string) {
   });
 }
 
-// async function applyLinting(ast: t.Node): Promise<void> {
-//   const promises: Promise<void>[] = [];
-//   traverse(ast, {
-//     TemplateLiteral(path: NodePath<babel.types.TemplateLiteral>) {
-//       console.log("Examining a template literal...");
-//       if (path.node.leadingComments?.some(comment => comment.value.trim() === 'tsx')) {
-//         console.log("Template literal has 'tsx' comment.");
-//         const rawCode = generate(path.node).code as string;
-//         console.log(`Raw code before formatting: ${rawCode}`);
-//         promises.push(lint(rawCode).then(formattedCode => {
-//           console.log("Formatted code:", formattedCode);
-//           path.replaceWithSourceString(formattedCode as string);
-//         }));
-//       }
-//     }
-//   });
-//   await Promise.all(promises);
-// }
-
-// applyLinting(ast).then(() => {
-//   console.log("All specified template literals have been linted.");
-// });
-
 async function lintCodeWithTemplateLiterals(code: string): Promise<string> {
-  const regex = /\/\*tsx\*\/`([^`]*)`/g;
-  let match;
-  let lintedCode = code;
+  try {
+    const ast = babelParser.parse(code, {
+      sourceType: "module",
+      plugins: ["jsx", "typescript"],
+    });
 
-  while ((match = regex.exec(code)) !== null) {
-    const original = match[0];
-    const contentToLint = match[1];
-    const formattedContent = await lint(contentToLint);
-    lintedCode = lintedCode.replace(original, `/*tsx*/\`${formattedContent}\``);
+    const promises: Promise<void>[] = [];
+
+    traverse(ast, {
+      TaggedTemplateExpression(path) {
+        if (path.node.tag.type === "Identifier" && path.node.tag.name === "tsx") {
+          const original = path.toString();
+          const contentToLint = path.get("quasi").getSource();
+          promises.push(
+            lint(contentToLint).then(formattedContent => {
+              path.replaceWithSourceString(`/*tsx*/\`${formattedContent}\``);
+            })
+          );
+        }
+      }
+    });
+
+    await Promise.all(promises);
+
+    const { code: formattedCode } = generate(ast);
+    return formattedCode;
+  } catch (error) {
+    console.error(`Error during AST parsing and modification: ${error}`);
+    throw error;
   }
-
-  return lintedCode;
 }
 
-let myText = `//TODO: Make sure all the processors are available here
+async function main() {
+  const myText = `//TODO: Make sure all the processors are available here
 const packageJson = {
   dependencies: {
     react: "^18.0.0",
@@ -132,5 +105,13 @@ const packageJson = {
   main: "/index.js",
   devDependencies: {},
 };`;
-const string2 = `${myText}`;
-lintCodeWithTemplateLiterals(string2).then(console.log);
+
+  try {
+    const lintedCode = await lintCodeWithTemplateLiterals(myText);
+    console.log(lintedCode);
+  } catch (error) {
+    console.error(`Failed to lint and log the code: ${error}`);
+  }
+}
+
+main();
